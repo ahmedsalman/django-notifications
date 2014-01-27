@@ -3,56 +3,88 @@ from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
 from django.db import models
-from django.utils.timezone import utc
+#from django.utils.timezone import utc
 from .utils import id2slug
 
 from notifications.signals import notify
 
-from model_utils import managers, Choices
+#from model_utils import managers, Choices
+from django.db.models.query import QuerySet
 
 now = datetime.datetime.now
-if getattr(settings, 'USE_TZ'):
-    try:
-        from django.utils import timezone
-        now = timezone.now
-    except ImportError:
-        pass
 
 
-class NotificationQuerySet(models.query.QuerySet):
-    
-    def unread(self):
-        "Return only unread items in the current queryset"
-        return self.filter(unread=True)
-    
-    def read(self):
-        "Return only read items in the current queryset"
-        return self.filter(unread=False)
-    
+#class NotificationQuerySet(QuerySet):
+
+#    def unread(self):
+#        "Return only unread items in the current queryset"
+#        return self.filter(unread=True)
+
+#    def read(self):
+#        "Return only read items in the current queryset"
+#        return self.filter(unread=False)
+
+#    def mark_all_as_read(self, recipient=None):
+#        """Mark as read any unread messages in the current queryset.
+
+#        Optionally, filter these by recipient first.
+#        """
+#        # We want to filter out read ones, as later we will store 
+#        # the time they were marked as read.
+#        qs = self.unread()
+#        if recipient:
+#            qs = qs.filter(recipient=recipient)
+
+#        qs.update(unread=False)
+
+#    def mark_all_as_unread(self, recipient=None):
+#        """Mark as unread any read messages in the current queryset.
+
+#        Optionally, filter these by recipient first.
+#        """
+#        qs = self.read()
+
+#        if recipient:
+#            qs = qs.filter(recipient=recipient)
+
+#        qs.update(unread=True)
+
+
+class NotificationManager(models.Manager):
+
+#    def get_query_set(self):
+#        NotificationQuerySet(self.model, using=self._db)
+
     def mark_all_as_read(self, recipient=None):
         """Mark as read any unread messages in the current queryset.
-        
         Optionally, filter these by recipient first.
         """
-        # We want to filter out read ones, as later we will store 
-        # the time they were marked as read.
-        qs = self.unread()
+        qs = self.get_query_set().filter(unread=True)
         if recipient:
             qs = qs.filter(recipient=recipient)
-        
+
         qs.update(unread=False)
-    
+
+
     def mark_all_as_unread(self, recipient=None):
         """Mark as unread any read messages in the current queryset.
-        
         Optionally, filter these by recipient first.
         """
-        qs = self.read()
-        
+        qs = self.get_query_set().filter(unread=False)
         if recipient:
             qs = qs.filter(recipient=recipient)
-            
+
         qs.update(unread=True)
+
+
+    def unread(self):
+        "Return only unread items in the current queryset"
+        return self.get_query_set().filter(unread=True)
+
+    def read(self):
+        "Return only read items in the current queryset"
+        return self.get_query_set().filter(unread=False)
+
 
 class Notification(models.Model):
     """
@@ -83,9 +115,15 @@ class Notification(models.Model):
         <a href="http://oebfare.com/">brosner</a> commented on <a href="http://github.com/pinax/pinax">pinax/pinax</a> 2 hours ago
 
     """
-    LEVELS = Choices('success', 'info', 'warning', 'error')
+
+    LEVELS = (
+        ('success', 'success'),
+        ('info', 'info'),        
+        ('error', 'error'),        
+    )
+
     level = models.CharField(choices=LEVELS, default='info', max_length=20)
-    
+
     recipient = models.ForeignKey(settings.AUTH_USER_MODEL, blank=False, related_name='notifications')
     unread = models.BooleanField(default=True, blank=False)
 
@@ -112,8 +150,8 @@ class Notification(models.Model):
     timestamp = models.DateTimeField(default=now)
 
     public = models.BooleanField(default=True)
-    
-    objects = managers.PassThroughManager.for_queryset_class(NotificationQuerySet)()
+
+    objects = NotificationManager()
 
     class Meta:
         ordering = ('-timestamp', )
@@ -179,14 +217,13 @@ def notify_handler(verb, **kwargs):
         description=kwargs.pop('description', None),
         timestamp=kwargs.pop('timestamp', now())
     )
-
     for opt in ('target', 'action_object'):
         obj = kwargs.pop(opt, None)
         if not obj is None:
             setattr(newnotify, '%s_object_id' % opt, obj.pk)
             setattr(newnotify, '%s_content_type' % opt,
                     ContentType.objects.get_for_model(obj))
-    
+
     if len(kwargs) and EXTRA_DATA:
         newnotify.data = kwargs
 
