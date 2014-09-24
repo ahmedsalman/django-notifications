@@ -1,7 +1,7 @@
 Django Notifications Documentation
 ===================================
 
-`django-notifications <https://github.com/brantyoung/django-notifications>`_ is a GitHub notification alike app for Django, it was derived from `django-activity-stream <https://github.com/justquick/django-activity-stream>`_
+`django-notifications <https://github.com/ahmedsalman/django-notifications>`_ is a GitHub notification alike app for Django, it was derived from `django-activity-stream <https://github.com/justquick/django-activity-stream>`_
 
 Notifications are actually actions events, which are categorized by four main components.
 
@@ -30,7 +30,7 @@ or get it from source
 
 ::
 
-    $ git clone https://github.com/brantyoung/django-notifications
+    $ git clone https://github.com/ahmedsalman/django-notifications
     $ cd django-notifications
     $ python setup.py install
 
